@@ -1,0 +1,280 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>udata-pt face ao upstream</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600&display=swap">
+<style>
+/* Layout: one readable column of a git-forensics report; numbers first, then evidence, then what to do. */
+:root {
+  --bg: #f6f7f8;
+  --surface: #ffffff;
+  --fg: #1b2127;
+  --muted: #5c6670;
+  --line: #dde1e5;
+  --pt: #1f6b4a;      /* fork (udata-pt) */
+  --pt-soft: #e3f1ea;
+  --up: #3b4fb8;      /* upstream (opendatateam) */
+  --up-soft: #e6e9f8;
+  --warn: #9a5b00;
+  --warn-soft: #fbf0dc;
+  --code-bg: #eef0f2;
+  --f-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14181c; --surface: #1c2227; --fg: #e4e8eb; --muted: #9aa5ae; --line: #2e363d;
+    --pt: #5fc596; --pt-soft: #1b3229; --up: #8f9ff0; --up-soft: #23284a;
+    --warn: #e8b25a; --warn-soft: #3a2d14; --code-bg: #232a30; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14181c; --surface: #1c2227; --fg: #e4e8eb; --muted: #9aa5ae; --line: #2e363d;
+  --pt: #5fc596; --pt-soft: #1b3229; --up: #8f9ff0; --up-soft: #23284a;
+  --warn: #e8b25a; --warn-soft: #3a2d14; --code-bg: #232a30; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font: 15px/1.6 var(--f-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 64px;
+}
+main { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 44px; }
+h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance; line-height: 1.2; margin: 0; }
+h1 { font-size: 2.1rem; letter-spacing: -0.01em; }
+h2 { font-size: 1.45rem; }
+h3 { font-size: 1.05rem; font-family: var(--f-body); }
+p { margin: 0; max-width: 68ch; }
+section { display: flex; flex-direction: column; gap: 14px; }
+code, .mono { font-family: var(--f-mono); font-size: 0.86em; }
+code { background: var(--code-bg); padding: 1px 5px; border-radius: 3px; overflow-wrap: anywhere; }
+.eyebrow { font: 500 0.72rem/1 var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+header { display: flex; flex-direction: column; gap: 10px; }
+.lede { color: var(--muted); font-size: 1.02rem; }
+.refs { display: flex; flex-wrap: wrap; gap: 8px 18px; font: 0.8rem/1.4 var(--f-mono); color: var(--muted); }
+.refs b { font-weight: 500; }
+.pt { color: var(--pt); } .up { color: var(--up); }
+
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.tile .n { font: 600 1.9rem/1.1 var(--f-display); font-variant-numeric: tabular-nums; }
+.tile .l { font-size: 0.84rem; color: var(--muted); line-height: 1.35; }
+.tile.warn { border-color: var(--warn); background: var(--warn-soft); }
+.tile.warn .n { color: var(--warn); }
+@media (max-width: 720px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { font: 500 0.72rem/1.3 var(--f-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); background: var(--bg); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.k { white-space: nowrap; font-family: var(--f-mono); font-size: 0.84rem; }
+
+.chip { display: inline-block; font: 500 0.72rem/1.5 var(--f-mono); padding: 0 7px; border-radius: 999px; white-space: nowrap; }
+.chip.ok { background: var(--pt-soft); color: var(--pt); }
+.chip.up { background: var(--up-soft); color: var(--up); }
+.chip.w { background: var(--warn-soft); color: var(--warn); }
+
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 720px) { .split { grid-template-columns: 1fr; } }
+.side { background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--pt); border-radius: 6px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.side.u { border-top-color: var(--up); }
+.side dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 0; font-size: 0.9rem; }
+.side dt { color: var(--muted); }
+.side dd { margin: 0; font-variant-numeric: tabular-nums; text-align: right; }
+
+ul.list { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 6px; max-width: 72ch; }
+ul.list li::marker { color: var(--muted); }
+.note { border-left: 3px solid var(--warn); background: var(--warn-soft); padding: 10px 14px; border-radius: 0 6px 6px 0; display: flex; flex-direction: column; gap: 6px; }
+ol.steps { margin: 0; padding-left: 1.3em; display: flex; flex-direction: column; gap: 10px; max-width: 72ch; }
+pre { margin: 0; background: var(--code-bg); border-radius: 6px; padding: 12px 14px; overflow-x: auto; font: 0.8rem/1.55 var(--f-mono); }
+pre code { background: none; padding: 0; }
+.muted { color: var(--muted); }
+footer { font-size: 0.82rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 14px; }
+</style>
+
+<main>
+<header>
+  <span class="eyebrow">Comparação de código · 24 nov 2026</span>
+  <h1><span class="pt">udata-pt</span> face ao <span class="up">opendatateam/udata</span></h1>
+  <p class="lede">Em que versão upstream assenta o fork português, o que acrescenta, o que lhe falta e quanto custa voltar a sincronizar.</p>
+  <div class="refs">
+    <span><b class="pt">fork</b> origin/main <code>c83e46dc4</code> · tag v16.0.0.13</span>
+    <span><b class="up">upstream</b> main <code>1cb062834</code> · v17.28.0 (23 nov)</span>
+  </div>
+</header>
+
+<section aria-labelledby="s-resumo">
+  <h2 id="s-resumo">Resumo</h2>
+  <div class="tiles">
+    <div class="tile"><span class="n">16.0.0</span><span class="l">base upstream confirmada, mais 6 commits de 16.1.0</span></div>
+    <div class="tile"><span class="n">50</span><span class="l">releases upstream em falta (16.1.0 → 17.28.0)</span></div>
+    <div class="tile"><span class="n">377</span><span class="l">commits de upstream/main que o fork não tem</span></div>
+    <div class="tile warn"><span class="n">108</span><span class="l">ficheiros em conflito num merge direto com upstream/main</span></div>
+  </div>
+  <p>O fork parou na 16.0.0 (24 mar 2026) e o upstream avançou oito meses, incluindo uma versão major (17.0.0, refactor da API de harvest). No mesmo período o fork somou 819 commits próprios, concentrados em harvesters portugueses, autenticação CMD/eIDAS e correções de segurança. Os dois lados mexeram em 177 ficheiros em comum. Um merge direto deixa 108 em conflito. Um sync em etapas começa com cerca de 41.</p>
+</section>
+
+<section aria-labelledby="s-base">
+  <h2 id="s-base">Base: como foi confirmada</h2>
+  <p>As três verificações de <code>docs/versioning.md</code> concordam. O <code>pyproject.toml</code> não foi usado como fonte.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Verificação</th><th>Resultado</th><th></th></tr></thead>
+    <tbody>
+      <tr><td>Ancestralidade: commits de cada tag em falta em <code>origin/main</code></td><td>v16.0.0 → 0 · v16.1.0 → 4 · v17.0.0 → 78 · v17.28.0 → 377</td><td><span class="chip ok">16.0.0</span></td></tr>
+      <tr><td>Merge-base com upstream/main</td><td><code>v16.0.0-6-gd4cc6a67b</code>: os 6 commits de 31 mar já estão integrados (API fields de badges e contact points, <code>private=</code> em topics, RDF access rights, udata-search-service simplificado, deps)</td><td><span class="chip ok">16.0.0+6</span></td></tr>
+      <tr><td>Conteúdo: ficheiros que a 16.0.0 adicionou e removeu face à 15.1.0</td><td>8 de 8 adicionados presentes (<code>api_token/</code>, migração das API keys…), 2 de 2 removidos ausentes (<code>spam/api.py</code>, <code>spam/constants.py</code>)</td><td><span class="chip ok">16.0.0</span></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section aria-labelledby="s-diff">
+  <h2 id="s-diff">Tamanho da divergência</h2>
+  <div class="split">
+    <div class="side">
+      <h3 class="pt">O fork desde v16.0.0</h3>
+      <dl>
+        <dt>Commits (sem merges)</dt><dd>819</dd>
+        <dt>Ficheiros novos</dt><dd>148</dd>
+        <dt>Ficheiros upstream modificados</dt><dd>187</dd>
+        <dt>Ficheiros removidos</dt><dd>8</dd>
+        <dt>Linhas</dt><dd>+63 768 / −3 934</dd>
+        <dt>Migrações novas</dt><dd>20</dd>
+      </dl>
+      <p class="muted" style="font-size:.84rem">Das linhas adicionadas, 3 904 são do CHANGELOG.</p>
+    </div>
+    <div class="side u">
+      <h3 class="up">O upstream desde v16.0.0</h3>
+      <dl>
+        <dt>Commits</dt><dd>377</dd>
+        <dt>Ficheiros novos</dt><dd>143</dd>
+        <dt>Ficheiros modificados</dt><dd>391</dd>
+        <dt>Ficheiros removidos</dt><dd>34</dd>
+        <dt>Linhas</dt><dd>+65 708 / −20 411</dd>
+        <dt>Migrações novas</dt><dd>29</dd>
+      </dl>
+      <p class="muted" style="font-size:.84rem">O upstream remove muito código (forms antigos, <code>pages</code>, <code>sitemap.py</code>, <code>tracking.py</code>) ao migrar para <code>api_fields</code>.</p>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="s-fork">
+  <h2 id="s-fork">O que o fork acrescenta</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Área</th><th class="num">Novos</th><th class="num">Modif.</th><th>O quê</th></tr></thead>
+    <tbody>
+      <tr><td class="k">udata/harvest</td><td class="num">39</td><td class="num">22</td><td>7 backends próprios: <code>ckanpt</code>, <code>cswudata</code> (absorveu o APAmbiente), <code>dgt</code>, <code>ine</code>, <code>inehvd</code>, <code>odspt</code>, <code>ogc</code>. Também <code>url_filter</code>, ocultação de credenciais em URLs e erros, sessão HTTP protegida, desafios Cloudflare e controlo de posse de registos. É a área com mais commits (166).</td></tr>
+      <tr><td class="k">udata/auth</td><td class="num">5</td><td class="num">4</td><td>Plugin SAML gov.pt: CMD (Chave Móvel Digital), eIDAS, nível FAA, registo, ligação de contas, validação por email e NIC (<code>core/user/nic.py</code>). 103 commits <code>saml</code> e 51 <code>auth</code>.</td></tr>
+      <tr><td class="k">core/metrics</td><td class="num">4</td><td class="num">4</td><td>Eventos de métricas próprios: <code>events</code>, <code>aggregations</code>, <code>listeners</code>, <code>api</code>, com coleção dedicada.</td></tr>
+      <tr><td class="k">core/site, api</td><td class="num">3</td><td class="num">5</td><td>Endpoint agregado da homepage, formulário de contacto com mail e rate limit, e <code>api/limits.py</code> (rate limiting por utilizador ou IP).</td></tr>
+      <tr><td class="k">core/dataset, storages</td><td class="num">2</td><td class="num">10</td><td><code>download_proxy</code>, filtro <code>format_family</code>, tags combinadas com OR, limite de upload de 1 GiB e validação do conteúdo dos uploads.</td></tr>
+      <tr><td class="k">segurança</td><td class="num">3</td><td class="num">—</td><td><code>core/utils/sanitization.py</code> (XSS, com migração), <code>sentry.py</code> com ocultação de dados sensíveis, fecho de enumeração de utilizadores e correções VULN-2077…2092.</td></tr>
+      <tr><td class="k">udata/migrations</td><td class="num">20</td><td class="num">1</td><td>Índices, licenças CC, migração de backends de harvest, limpezas de credenciais e recálculo de <code>last_update</code>. Inclui <code>db/migration_audit.py</code>.</td></tr>
+      <tr><td class="k">deploy, CI</td><td class="num">~25</td><td class="num">~6</td><td>Dockerfile, entrypoint, <code>uwsgi/</code>, compose, GitHub Actions, <code>scripts/</code> de auditoria e E2E, e <code>tag-version.sh</code> adaptado a 4 segmentos.</td></tr>
+      <tr><td class="k">translations</td><td class="num">7</td><td class="num">8</td><td>Ficheiros <code>.mo</code> compilados versionados e tradução PT.</td></tr>
+    </tbody>
+  </table></div>
+  <p class="muted">Removidos pelo fork: <code>.vscode/</code> e o endpoint de avatares/identicon (breaking em 16.0.0.12). Os outros 4 removidos (<code>badges</code>/<code>contact_point</code> <code>fields</code>/<code>forms</code>) vieram dos 6 commits upstream absorvidos.</p>
+</section>
+
+<section aria-labelledby="s-up">
+  <h2 id="s-up">O que o upstream trouxe desde 16.0.0</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Tema</th><th>Mudanças</th></tr></thead>
+    <tbody>
+      <tr><td><span class="chip w">breaking</span></td><td><b>17.0.0</b>: refactor da API de harvest. <b>17.7.0</b>: flask-storage 2.0 (uploads em streaming). <b>16.2.0</b>: as <code>pages</code> são substituídas por blocos editoriais, e o formato legado de blocos desaparece em 17.19.0.</td></tr>
+      <tr><td><span class="chip up">segurança</span></td><td>Cliente HTTP endurecido contra SSRF (17.2.0). Tokens e segredos OAuth2 guardados com hash e password grant removido (17.27.0). Sessão recente exigida para criar API tokens e mudar email. Sem sessão em pedidos autenticados por API key (17.26.0). 2FA para sysadmin (16.6.0) e para membros de organizações certificadas. Âmbito <code>sysadmin</code> nos API tokens (17.28.0).</td></tr>
+      <tr><td><span class="chip up">harvest</span></td><td>Núcleo dos harvesters consolidado (17.11.0), DCAT DatasetSeries, resolução espacial, DOI via <code>dct:identifier</code>, <code>harvest.last_update</code> em datasets, dataservices e recursos, erros remotos fora do Sentry, e fim do uso dos remote ids CKAN como ids de recurso (17.5.0).</td></tr>
+      <tr><td><span class="chip up">funcionalidades</span></td><td>Migração de organizações, topics, utilizadores, discussões, fontes de harvest e jobs para <code>api_fields</code>. DOI em datasets. Notificações com digests por email. Score de qualidade em dataservices. Tarefa de sitemap. Blocos de secção, coluna, imagem e cartão. Banner de organização. API v2 de reuses. Atividade por recurso.</td></tr>
+      <tr><td><span class="chip up">infra</span></td><td>Elasticsearch 8 e 9, Python 3.14, CircleCI substituído por GitHub Actions, RustFS em vez de MinIO nos testes, ruff 0.17, pillow 13 e várias atualizações de segurança de dependências.</td></tr>
+    </tbody>
+  </table></div>
+  <p>29 migrações novas por aplicar. Algumas tocam dados que o fork também trata: contact points (merge de duplicados, posse), discussões (integridade, apagar as que têm sujeitos não suportados), <code>backfill-harvest-remote-ids</code>, <code>deduplicate-resource-ids</code>, <code>hash-oauth2-tokens</code> e <code>rename-api-token-admin-scope</code>.</p>
+</section>
+
+<section aria-labelledby="s-cross">
+  <h2 id="s-cross">Onde os dois lados se cruzam</h2>
+  <p>Simulação com <code>git merge-tree</code> de <code>origin/main</code> contra <code>upstream/main</code>: 108 ficheiros em conflito. Distribuição:</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Área</th><th class="num">Conflitos</th></tr></thead>
+    <tbody>
+      <tr><td class="k">udata/tests</td><td class="num">20</td></tr>
+      <tr><td class="k">udata/harvest</td><td class="num">14</td></tr>
+      <tr><td class="k">core/discussions</td><td class="num">8</td></tr>
+      <tr><td class="k">udata/translations</td><td class="num">8</td></tr>
+      <tr><td class="k">core/user · organization · dataset</td><td class="num">5 + 5 + 5</td></tr>
+      <tr><td class="k">core/topic · post · dataservices · auth · docs</td><td class="num">4 + 3 + 3 + 3 + 3</td></tr>
+      <tr><td class="k">restantes (settings, mail, cors, api, pyproject, uv.lock…)</td><td class="num">27</td></tr>
+    </tbody>
+  </table></div>
+  <h3>Problemas que os dois lados resolveram cada um à sua maneira</h3>
+  <p class="muted">Pelos changelogs, estes pares parecem atacar o mesmo problema. Confirmar caso a caso no sync: pode bastar ficar com a versão upstream e largar a nossa.</p>
+  <ul class="list">
+    <li><b>IDs de recursos harvestados:</b> o fork mantém o id entre harvests (16.0.0.7) e o upstream deixou de adotar remote ids CKAN (17.5.0), além de <code>deduplicate-resource-ids</code>.</li>
+    <li><b>Filtro de várias tags:</b> o fork passou a OR (16.0.0.7, breaking) e o upstream corrigiu "filter with multiple tags" (17.0.8).</li>
+    <li><b>HTTP dos harvesters:</b> o fork usa uma sessão protegida com retries e oculta credenciais; o upstream tem cliente anti-SSRF (17.2.0) e deixou de partilhar headers entre fontes (17.19.0).</li>
+    <li><b>Índice de <code>harvest.remote_id</code>:</b> migração do fork de 10 jul, e backfill upstream de 17 ago.</li>
+    <li><b>Avatares:</b> o fork removeu o endpoint de identicon e o upstream limitou o tamanho do avatar (17.21.0).</li>
+    <li><b>Validação de uploads:</b> o fork valida o conteúdo dos uploads em streaming; o upstream valida o conteúdo das imagens (17.7.1) e faz streaming dos uploads (17.6.0).</li>
+  </ul>
+</section>
+
+<section aria-labelledby="s-cost">
+  <h2 id="s-cost">Custo de sincronização por etapa</h2>
+  <p>Conflitos simulados para cada alvo possível, a partir do <code>origin/main</code> atual:</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Alvo</th><th class="num">Commits em falta</th><th class="num">Ficheiros em conflito</th><th>Nota</th></tr></thead>
+    <tbody>
+      <tr><td class="k">v16.6.1</td><td class="num">73</td><td class="num">41</td><td>Fim da linha 16.x, sem breaking changes declaradas. Traz o 2FA para sysadmin.</td></tr>
+      <tr><td class="k">v17.0.0</td><td class="num">78</td><td class="num">44</td><td>Refactor da API de harvest. Com 7 backends próprios, é a etapa mais delicada, apesar de acrescentar poucos conflitos à anterior.</td></tr>
+      <tr><td class="k">v17.14.0</td><td class="num">261</td><td class="num">93</td><td>Inclui flask-storage 2.0 e a consolidação do núcleo de harvest (17.11.0).</td></tr>
+      <tr><td class="k">v17.28.0 / main</td><td class="num">377</td><td class="num">108</td><td>Estado atual.</td></tr>
+    </tbody>
+  </table></div>
+  <p class="muted">Os números são cumulativos a partir do estado de hoje. Depois de cada etapa resolvida, a seguinte fica mais pequena do que a diferença entre linhas sugere.</p>
+</section>
+
+<section aria-labelledby="s-obs">
+  <h2 id="s-obs">Outras observações</h2>
+  <div class="note">
+    <h3>A versão voltou a desalinhar</h3>
+    <p>A tag <code>v16.0.0.13</code> (27 out) aponta para um commit cujo <code>pyproject.toml</code> diz <code>16.0.0.12</code> e cujo CHANGELOG não tem secção <code>16.0.0.13</code>. O <code>origin/main</code> continua com <code>16.0.0.12</code>. A proteção "refuse to tag a version the project does not declare" ainda está em <i>Unreleased</i>, por isso chegou depois desta tag.</p>
+  </div>
+  <ul class="list">
+    <li><b>Ficheiros que não deviam estar em <code>main</code>:</b> <code>t.json</code>, <code>test-results/.last-run.json</code>, <code>logs/.gitkeep</code>, <code>package.json</code> e <code>package-lock.json</code>.</li>
+    <li><b>Números desatualizados em <code>docs/versioning.md</code>:</b> o texto fala em 286 ficheiros (114 novos, 172 modificados). Hoje são 343 (148, 187, 8).</li>
+    <li><b>O ramo <code>feature/gateway-api-key</code>:</b> o upstream mexeu na mesma zona: âmbito <code>sysadmin</code> nos API tokens e migração <code>rename-api-token-admin-scope</code> (17.28.0), sessão recente para criar tokens (17.27.0), sem sessão em pedidos por API key (17.26.0). Convém alinhar o desenho com isto para não criar mais um conflito.</li>
+  </ul>
+</section>
+
+<section aria-labelledby="s-rec">
+  <h2 id="s-rec">Recomendação</h2>
+  <ol class="steps">
+    <li><b>Sincronizar para v16.6.1 primeiro.</b> São 41 conflitos, sem breaking changes, e a versão passa a <code>16.6.1.1</code>.</li>
+    <li><b>Tratar a v17.0.0 como uma etapa isolada.</b> Rever os 7 harvesters PT contra a nova API de harvest, com testes de preview de cada fonte real.</li>
+    <li><b>Avançar até à 17.x atual em uma ou duas etapas</b> (por exemplo 17.14.0 e depois main). Em cada par da secção "Onde os dois lados se cruzam", preferir a solução upstream sempre que cubra o caso português, porque cada ficheiro que deixa de ser modificado é um conflito a menos no sync seguinte.</li>
+    <li><b>Antes de cada etapa,</b> correr as 29 migrações upstream sobre uma cópia da base de dados de ppr. Nenhuma migração reverte.</li>
+  </ol>
+</section>
+
+<section aria-labelledby="s-repro">
+  <h2 id="s-repro">Como reproduzir</h2>
+  <pre><code>git remote add upstream https://github.com/opendatateam/udata.git
+git config remote.upstream.tagOpt --no-tags
+git fetch upstream '+refs/tags/*:refs/tags/upstream/*' --no-tags
+git fetch upstream main --no-tags
+
+git rev-list --count refs/tags/upstream/v16.1.0 ^origin/main      # 4
+git describe --tags --match 'upstream/*' $(git merge-base origin/main upstream/main)
+git diff --name-status --no-renames refs/tags/upstream/v16.0.0 origin/main | cut -f1 | sort | uniq -c
+git merge-tree --write-tree --name-only --no-messages origin/main upstream/main | tail -n +2 | wc -l   # 108</code></pre>
+</section>
+
+<footer>Gerado a partir do histórico git local a 24 nov 2026. Os conflitos são uma simulação de <code>git merge-tree</code> e não contam conflitos semânticos (código que funde sem conflito mas deixa de funcionar).</footer>
+</main>
+
+</body></html>
